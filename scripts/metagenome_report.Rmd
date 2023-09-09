@@ -1,0 +1,227 @@
+---
+title: "Metagenome Report"
+date: "`r format(Sys.time(), '%d.%m.%Y')`"
+output: rmdformats::readthedown
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(DT)
+options(OutDec= ",")
+
+```
+
+```{r import, include=FALSE}
+# Read input files
+total_reads <- as.integer(read.table(file=paste0(folder,"/alignment/total_reads.txt")))
+nonhuman_reads <- as.integer(read.table(file=paste0(folder,"/alignment/non_human_reads.txt")))
+host_reads <- total_reads - nonhuman_reads
+
+percent <- round(((host_reads*100)/total_reads), 2)
+percent_nonhuman <- round(((nonhuman_reads*100)/total_reads), 2)
+
+total_reads <- format(total_reads,nsmall = 3,big.mark = ".")
+nonhuman_reads_format <- format(nonhuman_reads,nsmall = 3,big.mark = ".")
+host_reads <- paste0(format(host_reads,nsmall = 3,big.mark = "."), " (",percent,"%)")
+```
+
+# Sequencing run
+
+**Total reads:** `r total_reads`\
+**Host reads:** `r host_reads`\
+**non-human reads:** `r nonhuman_reads_format` (`r percent_nonhuman`%)
+
+Reads with poor quality and low-complexity regions were trimmed with fqtrim (Center for Computational Biology, Johns Hopkins University). Remaining high-quality reads were aligned against the human reference genome using bowtie2 (Langmead und Salzberg 2012). All non-human reads were subsequently further analyzed with various metagenomics tools.
+
+```{r kraken, include=FALSE}
+# Read input files
+kraken_files <- list.files(path=paste0(folder,"/kraken"), full.names = TRUE)
+kraken_standard <- read.delim(kraken_files[grepl("standard",kraken_files)],header = FALSE)
+kraken_eupathdb <- read.delim(kraken_files[grepl("eupath",kraken_files)],header = FALSE)
+kraken_viral <- read.delim(kraken_files[grepl("viral",kraken_files)],header = FALSE)
+
+colnames <- c("percentage","reads_clade","reads_taxon","minimizers",
+              "distinct_minimizers","rank","ncbi_id","name")
+
+colnames(kraken_standard) <- colnames
+colnames(kraken_eupathdb) <- colnames
+colnames(kraken_viral) <- colnames
+
+kraken_standard$name <- trimws(kraken_standard$name)
+kraken_eupathdb$name <- trimws(kraken_eupathdb$name)
+kraken_viral$name <- trimws(kraken_viral$name)
+
+total_reads_standard <- sum(kraken_standard$reads_clade[kraken_standard$rank=="U"],kraken_standard$reads_clade[kraken_standard$rank=="R"])
+unclassified_standard <- format(kraken_standard$reads_clade[kraken_standard$rank=="U"],nsmall = 3,big.mark = ".")
+unclassified_eupathdb <- format(kraken_eupathdb$reads_clade[kraken_eupathdb$rank=="U"],nsmall = 3,big.mark = ".")
+unclassified_viral <- format(kraken_viral$reads_clade[kraken_viral$rank=="U"],nsmall = 3,big.mark = ".")
+```
+
+# Kraken2
+Showing top 30 results.
+                                                                             
+```{r standard_species , echo=FALSE}
+input <- kraken_standard[grepl("S",kraken_standard$rank) & kraken_standard$reads_clade > 2,]
+hs_reads <- input$reads_taxon[input$name=="Homo sapiens"]
+hs_percent <- input$percentage[input$name=="Homo sapiens"]
+
+input <- input[order(input$reads_clade, decreasing = TRUE)[1:30],]
+input <- input[,-c(1,6)]
+rownames(input) <- NULL
+input <- na.omit(cbind(Species=input[,"name"],input[,c(1:5)]))
+
+datatable(input, options = list(pageLength = 3))
+
+```
+
+**k2_standard database** \
+Unclassified reads: `r unclassified_standard` (`r round(((kraken_standard$reads_clade[kraken_standard$rank=="U"]*100)/nonhuman_reads),2)`%).\
+Homo sapiens reads: `r hs_reads` (`r hs_percent`%)
+
+```{r viral_species , echo=FALSE}
+input <- kraken_viral[grepl("S",kraken_viral$rank) & kraken_viral$reads_clade > 2,]
+
+input <- input[order(input$reads_clade, decreasing = TRUE)[1:30],]
+input <- input[,-c(1,6)]
+rownames(input) <- NULL
+input <- na.omit(cbind(Species=input[,"name"],input[,c(1:5)]))
+
+datatable(input, options = list(pageLength = 3))
+
+```
+
+**k2_viral database** \
+Unclassified reads: `r unclassified_viral` (`r round(((kraken_viral$reads_clade[kraken_viral$rank=="U"]*100)/nonhuman_reads),2)`%).
+
+```{r eupathdb_species , echo=FALSE}
+input <- kraken_eupathdb[grepl("S",kraken_eupathdb$rank) & kraken_eupathdb$reads_clade > 2,]
+
+input <- input[order(input$reads_clade, decreasing = TRUE)[1:30],]
+input <- input[,-c(1,6)]
+rownames(input) <- NULL
+input <- na.omit(cbind(Species=input[,"name"],input[,c(1:5)]))
+
+datatable(input, options = list(pageLength = 3))
+
+```
+
+**k2_eupathdb48 database** \
+Unclassified reads: `r unclassified_eupathdb` (`r round(((kraken_eupathdb$reads_clade[kraken_eupathdb$rank=="U"]*100)/nonhuman_reads),2)`%).
+
+# Centrifuge
+Showing top 30 results.
+
+```{r centrifuge, echo=FALSE}
+# Read input files
+centrifuge_file <- list.files(path=paste0(folder,"/centrifuge"), full.names = TRUE)
+if(length(centrifuge_file)==1){
+  input <- read.delim(centrifuge_file,header = TRUE)
+  input <- input[!grepl("Homo sapiens", input$name),]
+  input <- input[order(input$numReads, decreasing = TRUE)[1:30],]
+  rownames(input) <- NULL
+  colnames(input) <- c("Name", "taxID", "taxRank", "genomeSize", "Reads","UniqueReads", "abundance")
+  datatable(input, options = list(pageLength = 3))
+}
+
+```
+
+# Arriba
+
+Viral alignment and genome coverage.\
+
+```{r arriba_virus, echo=FALSE}
+# Read input files
+arriba_file <- list.files(path=paste0(folder,"/arriba"), pattern = "virus", full.names = TRUE)
+
+if(length(arriba_file)==1){
+  input <- read.delim(arriba_file,header = TRUE)
+  datatable(input, options = list(pageLength = 3))
+}
+
+```
+
+Detection of viral integrations into the human genome.\
+
+```{r arriba_fusions, echo=FALSE}
+arriba_file <- list.files(path=paste0(folder,"/arriba"), pattern = "fusions", full.names = TRUE)
+
+if(length(arriba_file)==1){
+  input <- read.delim(arriba_file,header = TRUE)
+  #colnames(input)[1] <- "Gene 1"
+  #colnames(input)[2] <- "Gene 2"
+  #colnames(input)[5] <- "Breakpoint 1"
+  #colnames(input)[6] <- "Breakpoint 2"
+  #datatable(input[,c(1,2,5,6)], options = list(pageLength = 3))
+  datatable(input, options = list(pageLength = 3))
+}
+
+```
+
+# *De novo* assembly
+
+```{r de_novo_stats, echo= FALSE}
+log_file <- list.files(path=paste0(folder,"/assembly"), pattern = "log", full.names = TRUE)
+
+if(length(log_file)==1){
+log <- read.delim(log_file,header = FALSE)
+log <- log[nrow(log)-1,]
+}
+
+```
+
+*De novo* assembly of `r nonhuman_reads` non-human reads using MEGAHIT (Li et al. 2015) with following metrics: `r if(length(log_file)==1){log}`\
+
+#### Classification of de novo assembled contigs with Centrifuge
+
+```{r de_novo_assembly_centrifuge, echo= FALSE}
+class_res <- list.files(path=paste0(folder,"/assembly"), pattern = "centrifuge.txt", full.names = TRUE)
+
+if(length(class_res)==1){
+tmp <- read.delim(class_res,header = TRUE)
+tmp <- tmp[tmp$taxID!=9606,]
+tmp$link <- ifelse(tmp$seqID==paste(c("species","genus"),collapse = "|"),"",paste0("https://www.ncbi.nlm.nih.gov/nuccore/",tmp$seqID))
+
+table <- tmp[order(tmp$hitLength, decreasing = TRUE),]
+
+datatable(table, options = list(pageLength = 100))
+}
+
+```
+
+#### lassification of de novo assembled contigs with Kraken2
+
+```{r de_novo_assembly_kraken2, echo= FALSE}
+class_res <- list.files(path=paste0(folder,"/assembly"), pattern = "kraken.output.txt", full.names = TRUE)
+
+if(length(class_res)==1){
+tmp <- read.delim(class_res,header = FALSE)
+tmp <- tmp[,c(2,3,4)]
+colnames(tmp) <- c("ID","Classification","Length")
+tmp <- tmp[tmp$Classification!="Homo sapiens (taxid 9606)",]
+table <- tmp[order(tmp$Length, decreasing = TRUE),]
+
+datatable(table, options = list(pageLength = 100))
+}
+
+```
+
+# QC
+
+Per base quality of raw and trimmed fastq files was analyzed using FastQC (The Babraham Institute).
+
+```{r fastqc, echo=FALSE}
+fastqc <- list.files(path=paste0(folder,"/fastqc"), pattern = "per_base_quality.png", 
+                     recursive = TRUE, full.names = TRUE)
+```
+
+**Read 1**\
+Before trimming:\
+![Fastqc R1](`r if(length(fastqc)==4){fastqc[1]}`) 
+After trimming:\
+![Fastqc R1](`r if(length(fastqc)==4){fastqc[2]}`) 
+**Read 2**\
+Before trimming:\
+![Fastqc R1](`r if(length(fastqc)==4){fastqc[3]}`)  
+After trimming:\
+![Fastqc R1](`r if(length(fastqc)==4){fastqc[4]}`)
