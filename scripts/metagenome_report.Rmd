@@ -189,7 +189,7 @@ datatable(table, options = list(pageLength = 100))
 
 ```
 
-#### lassification of de novo assembled contigs with Kraken2
+#### Classification of de novo assembled contigs with Kraken2
 
 ```{r de_novo_assembly_kraken2, echo= FALSE}
 class_res <- list.files(path=paste0(folder,"/assembly"), pattern = "kraken.output.txt", full.names = TRUE)
