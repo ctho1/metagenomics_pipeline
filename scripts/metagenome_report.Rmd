@@ -9,7 +9,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
 library(DT)
 options(OutDec= ",")
-
 ```
 
 ```{r import, include=FALSE}
@@ -30,7 +29,7 @@ host_reads <- paste0(format(host_reads,nsmall = 3,big.mark = "."), " (",percent,
 
 **Total reads:** `r total_reads`\
 **Host reads:** `r host_reads`\
-**non-human reads:** `r nonhuman_reads_format` (`r percent_nonhuman`%)
+**Non-human reads:** `r nonhuman_reads_format` (`r percent_nonhuman`%)
 
 Reads with poor quality and low-complexity regions were trimmed with fqtrim (Center for Computational Biology, Johns Hopkins University). Remaining high-quality reads were aligned against the human reference genome using bowtie2 (Langmead und Salzberg 2012). All non-human reads were subsequently further analyzed with various metagenomics tools.
 
@@ -59,7 +58,7 @@ unclassified_viral <- format(kraken_viral$reads_clade[kraken_viral$rank=="U"],ns
 ```
 
 # Kraken2
-Showing top 30 results.
+Showing top 30 results. \
                                                                              
 ```{r standard_species , echo=FALSE}
 input <- kraken_standard[grepl("S",kraken_standard$rank) & kraken_standard$reads_clade > 2,]
@@ -71,13 +70,16 @@ input <- input[,-c(1,6)]
 rownames(input) <- NULL
 input <- na.omit(cbind(Species=input[,"name"],input[,c(1:5)]))
 
-datatable(input, options = list(pageLength = 3))
-
 ```
 
 **k2_standard database** \
 Unclassified reads: `r unclassified_standard` (`r round(((kraken_standard$reads_clade[kraken_standard$rank=="U"]*100)/nonhuman_reads),2)`%).\
 Homo sapiens reads: `r hs_reads` (`r hs_percent`%)
+
+```{r, echo=FALSE}
+datatable(input, options = list(pageLength = 3))
+```
+
 
 ```{r viral_species , echo=FALSE}
 input <- kraken_viral[grepl("S",kraken_viral$rank) & kraken_viral$reads_clade > 2,]
@@ -87,12 +89,15 @@ input <- input[,-c(1,6)]
 rownames(input) <- NULL
 input <- na.omit(cbind(Species=input[,"name"],input[,c(1:5)]))
 
-datatable(input, options = list(pageLength = 3))
-
 ```
 
 **k2_viral database** \
 Unclassified reads: `r unclassified_viral` (`r round(((kraken_viral$reads_clade[kraken_viral$rank=="U"]*100)/nonhuman_reads),2)`%).
+
+```{r, echo=FALSE}
+datatable(input, options = list(pageLength = 3))
+```
+
 
 ```{r eupathdb_species , echo=FALSE}
 input <- kraken_eupathdb[grepl("S",kraken_eupathdb$rank) & kraken_eupathdb$reads_clade > 2,]
@@ -102,15 +107,19 @@ input <- input[,-c(1,6)]
 rownames(input) <- NULL
 input <- na.omit(cbind(Species=input[,"name"],input[,c(1:5)]))
 
-datatable(input, options = list(pageLength = 3))
 
 ```
 
 **k2_eupathdb48 database** \
 Unclassified reads: `r unclassified_eupathdb` (`r round(((kraken_eupathdb$reads_clade[kraken_eupathdb$rank=="U"]*100)/nonhuman_reads),2)`%).
 
+```{r, echo=FALSE}
+datatable(input, options = list(pageLength = 3))
+```
+
+
 # Centrifuge
-Showing top 30 results.
+Showing top 30 results.\
 
 ```{r centrifuge, echo=FALSE}
 # Read input files
@@ -127,7 +136,6 @@ if(length(centrifuge_file)==1){
 ```
 
 # Arriba
-
 Viral alignment and genome coverage.\
 
 ```{r arriba_virus, echo=FALSE}
