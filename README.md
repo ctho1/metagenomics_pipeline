@@ -5,4 +5,4 @@ A pipeline for metagenomic sequencing experiments. Takes paired-end .fastq files
 The following tools need to be installed and available in PATH: kraken2, centrifuge, arriba, STAR, MEGAHIT.
 
 # HTML report
-
+![report](https://raw.githubusercontent.com/ctho1/metagenomics_pipeline/main/example/report.png)
